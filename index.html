@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#050609">
+<title>Alive 2007 | Simulador de palco</title>
+<style>
+:root {
+    color-scheme: dark;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #050609;
+    color: #f4f4f4;
+    --panel: #111318;
+    --line: #30343d;
+    --muted: #a4a9b4;
+    --cyan: #00e5ff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-width: 320px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+button, input, select { font: inherit; }
+button, select, input[type="color"] { cursor: pointer; }
+
+#container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+#controls {
+    z-index: 2;
+    flex: 0 0 310px;
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    scrollbar-color: #454b56 var(--panel);
+}
+
+body.sidebar-hidden #controls { display: none; }
+
+h1 {
+    margin: 0 0 4px;
+    font-size: 19px;
+    letter-spacing: .04em;
+}
+
+.intro, .hint, .warning {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.group {
+    margin: 14px 0;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+}
+
+.group h2 {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+
+.group.is-selected {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 1px #00e5ff30;
+}
+
+label {
+    display: block;
+    margin: 9px 0 4px;
+    font-size: 12px;
+}
+
+input[type="range"] { width: 100%; accent-color: var(--cyan); }
+input[type="color"] { width: 100%; height: 32px; padding: 2px; }
+input[type="url"], select, button {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 9px;
+    color: inherit;
+    background: #090b0f;
+    border: 1px solid #444a55;
+    border-radius: 4px;
+}
+
+button:hover { border-color: var(--cyan); }
+button:active { background: #1b2830; }
+
+:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+}
+
+.range-value {
+    float: right;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.rgb-row {
+    display: grid;
+    grid-template-columns: 1fr 42px;
+    align-items: center;
+    gap: 8px;
+}
+
+.rgb-row output {
+    color: var(--muted);
+    text-align: right;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+.check-row input { accent-color: var(--cyan); }
+
+#player iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin-top: 10px;
+    border: 0;
+}
+
+#player:empty { display: none; }
+#youtubeMessage { min-height: 1em; }
+
+#stage {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    background: #050609;
+}
+
+#stage:fullscreen {
+    width: 100vw;
+    height: 100vh;
+}
+
+canvas { display: block; width: 100%; height: 100%; }
+
+#legend {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    width: min(390px, calc(100% - 28px));
+    padding: 10px 12px;
+    color: #e7eaf0;
+    background: #090b10d9;
+    border: 1px solid #ffffff28;
+    border-radius: 5px;
+    backdrop-filter: blur(5px);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+#legend strong { color: #fff; }
+#legend .keys { color: #a9f5ff; }
+#legend .legend-title { margin-bottom: 3px; font-size: 12px; }
+#legend[hidden] { display: none; }
+
+#status {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    max-width: calc(100% - 24px);
+    padding: 7px 10px;
+    transform: translateX(-50%);
+    color: #fff;
+    background: #090b10d9;
+    border: 1px solid #ffffff28;
+    border-radius: 4px;
+    font-size: 12px;
+    text-align: center;
+    pointer-events: none;
+}
+
+#status:empty { display: none; }
+
+@media (max-width: 700px) {
+    body { height: 100dvh; }
+    #container { flex-direction: column-reverse; }
+    #controls {
+        flex: 0 0 auto;
+        width: 100%;
+        max-height: 42%;
+        padding: 10px 12px;
+        border-top: 1px solid var(--line);
+        border-right: 0;
+    }
+    #stage { flex: 1 1 auto; min-height: 0; }
+    .group { margin: 9px 0; }
+    #legend { right: 8px; bottom: 8px; width: min(360px, calc(100% - 16px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<div id="container">
+    <aside id="controls" aria-label="Controles do simulador">
+        <h1>ALIVE 2007 · STAGE</h1>
+        <p class="intro">Palco audiovisual inspirado na turnê Alive 2007. Use Tab para percorrer os controles ou os atalhos sobre o palco.</p>
+
+        <section class="group" aria-labelledby="videoTitle">
+            <h2 id="videoTitle">Vídeo do YouTube</h2>
+            <label for="youtubeUrl">Link do vídeo</label>
+            <input id="youtubeUrl" type="url" autocomplete="url" placeholder="https://www.youtube.com/watch?v=...">
+            <button id="loadYoutube" type="button">Carregar vídeo</button>
+            <p id="youtubeMessage" class="hint" role="status" aria-live="polite"></p>
+            <div id="player"></div>
+        </section>
+
+        <section class="group" aria-labelledby="globalTitle">
+            <h2 id="globalTitle">Palco e fundo</h2>
+            <label for="bgColor">Cor RGB do fundo</label>
+            <input id="bgColor" type="color" value="#ff00aa" aria-label="Escolher cor do fundo">
+            <div class="rgb-row">
+                <label for="bgRed">Vermelho (R)</label>
+                <output id="bgRedValue" for="bgRed">255</output>
+                <input id="bgRed" type="range" min="0" max="255" value="255" aria-label="Canal vermelho do fundo">
+            </div>
+            <div class="rgb-row">
+                <label for="bgGreen">Verde (G)</label>
+                <output id="bgGreenValue" for="bgGreen">0</output>
+                <input id="bgGreen" type="range" min="0" max="255" value="0" aria-label="Canal verde do fundo">
+            </div>
+            <div class="rgb-row">
+                <label for="bgBlue">Azul (B)</label>
+                <output id="bgBlueValue" for="bgBlue">170</output>
+                <input id="bgBlue" type="range" min="0" max="255" value="170" aria-label="Canal azul do fundo">
+            </div>
+            <label for="strobeSpeed">Velocidade do estrobo (máx. 4 Hz) <span class="range-value" id="strobeValue"></span></label>
+            <input id="strobeSpeed" type="range" min="0.5" max="4" step="0.5" value="2">
+            <label class="check-row" for="strobeEnabled">
+                <input id="strobeEnabled" type="checkbox" checked>
+                Estrobo do fundo ligado
+            </label>
+            <p class="warning">O estrobo é limitado a 4 Hz. Luzes piscantes ainda podem causar desconforto ou crises em pessoas fotossensíveis; desligue-o aqui ou com B se necessário.</p>
+        </section>
+
+        <section class="group grid-group" id="gridGroup" aria-labelledby="gridTitle">
+                <h2 id="gridTitle">Grade central · tecla 4</h2>
+                <label for="gridColor">Cor / matiz</label>
+                <input type="color" id="gridColor" value="#d9eaff">
+                <label for="contour">Intensidade do contorno <span class="range-value" id="contourValue"></span></label>
+                <input id="contour" type="range" min="0" max="100" value="75">
+                <label class="check-row" for="contourAuto">
+                    <input id="contourAuto" type="checkbox" checked>
+                    Alternar matiz dos contornos automaticamente
+                </label>
+                <label for="contourSpeed">Velocidade da alternância <span class="range-value" id="contourSpeedValue"></span></label>
+                <input id="contourSpeed" type="range" min="0.05" max="1.5" step="0.05" value="0.15">
+        </section>
+
+        <section class="group light-group is-selected" data-group="left" aria-labelledby="leftTitle">
+            <h2 id="leftTitle">Lado esquerdo · 6 luzes</h2>
+            <label for="leftColor">Cor</label>
+            <input type="color" id="leftColor" value="#00e5ff">
+            <label for="leftMode">Projeção</label>
+            <select id="leftMode">
+                <option value="cone">Cones de luz</option>
+                <option value="spot">Pontos</option>
+            </select>
+            <label for="leftAngle">Ângulo <span class="range-value" id="leftAngleValue"></span></label>
+            <input type="range" id="leftAngle" min="0" max="360" value="0">
+            <label for="leftIntensity">Intensidade <span class="range-value" id="leftIntensityValue"></span></label>
+            <input type="range" id="leftIntensity" min="10" max="100" value="75">
+        </section>
+
+        <section class="group light-group" data-group="right" aria-labelledby="rightTitle">
+            <h2 id="rightTitle">Lado direito · 6 luzes</h2>
+            <label for="rightColor">Cor</label>
+            <input type="color" id="rightColor" value="#ff3158">
+            <label for="rightMode">Projeção</label>
+            <select id="rightMode">
+                <option value="cone">Cones de luz</option>
+                <option value="spot">Pontos</option>
+            </select>
+            <label for="rightAngle">Ângulo <span class="range-value" id="rightAngleValue"></span></label>
+            <input type="range" id="rightAngle" min="0" max="360" value="0">
+            <label for="rightIntensity">Intensidade <span class="range-value" id="rightIntensityValue"></span></label>
+            <input type="range" id="rightIntensity" min="10" max="100" value="75">
+        </section>
+
+        <section class="group light-group" data-group="bottom" aria-labelledby="bottomTitle">
+            <h2 id="bottomTitle">Base · 6 luzes</h2>
+            <label for="bottomColor">Cor</label>
+            <input type="color" id="bottomColor" value="#ffd84d">
+            <label for="bottomMode">Projeção</label>
+            <select id="bottomMode">
+                <option value="cone">Cones de luz</option>
+                <option value="spot">Pontos</option>
+            </select>
+            <label for="bottomAngle">Ângulo <span class="range-value" id="bottomAngleValue"></span></label>
+            <input type="range" id="bottomAngle" min="0" max="360" value="0">
+            <label for="bottomIntensity">Intensidade <span class="range-value" id="bottomIntensityValue"></span></label>
+            <input type="range" id="bottomIntensity" min="10" max="100" value="75">
+        </section>
+
+        <section class="group">
+            <h2>Salvar simulador</h2>
+            <button id="downloadHtml" type="button">Baixar HTML completo</button>
+            <p class="hint">Salva uma cópia deste simulador em um único arquivo HTML.</p>
+        </section>
+    </aside>
+
+    <main id="stage" aria-label="Visualização interativa do palco">
+        <canvas id="canvas" aria-label="Palco triangular com pirâmide central e luzes"></canvas>
+        <div id="status" role="status" aria-live="polite"></div>
+        <aside id="legend" aria-label="Legenda de atalhos do teclado">
+            <div class="legend-title"><strong>ATALHOS</strong> · <span id="selectedLabel">grupo 1 · esquerdo</span></div>
+            <div><span class="keys">1 / 2 / 3 / 4</span> selecionar lado esquerdo / direito / base / grade</div>
+            <div><span class="keys">← / →</span> ângulo (luzes) ou matiz (grade) · <span class="keys">↑ / ↓</span> intensidade</div>
+            <div><span class="keys">H / G</span> girar matiz do fundo + seleção · <span class="keys">[ / ]</span> cor predefinida</div>
+            <div><span class="keys">M</span> cones/pontos (grupo de luzes)</div>
+            <div><span class="keys">Q</span> ocultar/mostrar barra lateral · <span class="keys">F</span> tela cheia (Esc sai)</div>
+            <div><span class="keys">+ / −</span> velocidade do estrobo · <span class="keys">B</span> liga/desliga</div>
+            <div><span class="keys">T</span> animar contorno · <span class="keys">K / L</span> velocidade · <span class="keys">, / .</span> intensidade</div>
+            <div><span class="keys">Espaço</span> pausar · <span class="keys">?</span> legenda</div>
+            <div><span class="keys">Tab</span> navegar controles · <span class="keys">Enter</span> carregar vídeo no campo do link</div>
+        </aside>
+    </main>
+</div>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const stage = document.getElementById("stage");
+const status = document.getElementById("status");
+const legend = document.getElementById("legend");
+const groups = ["left", "right", "bottom"];
+const selectableGroups = [...groups, "grid"];
+const groupNames = { left: "esquerdo", right: "direito", bottom: "base", grid: "grade central" };
+const palette = ["#00e5ff", "#ff3158", "#ffd84d", "#8d5bff", "#5dff9d", "#ffffff"];
+let selectedGroup = "left";
+let elapsed = 0;
+let previousFrame = 0;
+let paused = false;
+let statusTimer;
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+function element(id) {
+    return document.getElementById(id);
+}
+
+function announce(message) {
+    status.textContent = message;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { status.textContent = ""; }, 2200);
+}
+
+function hexToRgb(hex) {
+    const value = hex.replace("#", "");
+    return {
+        red: parseInt(value.slice(0, 2), 16),
+        green: parseInt(value.slice(2, 4), 16),
+        blue: parseInt(value.slice(4, 6), 16)
+    };
+}
+
+function hexToHsl(hex) {
+    const { red, green, blue } = hexToRgb(hex);
+    const r = red / 255;
+    const g = green / 255;
+    const b = blue / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+    const lightness = (max + min) / 2;
+    let hue = 0;
+    let saturation = 0;
+
+    if (delta !== 0) {
+        saturation = delta / (1 - Math.abs(2 * lightness - 1));
+        if (max === r) hue = 60 * (((g - b) / delta) % 6);
+        else if (max === g) hue = 60 * ((b - r) / delta + 2);
+        else hue = 60 * ((r - g) / delta + 4);
+    }
+
+    return { hue: (hue + 360) % 360, saturation, lightness };
+}
+
+function hslToHex(hue, saturation, lightness) {
+    const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+    const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
+    const match = lightness - chroma / 2;
+    let rgb;
+    if (hue < 60) rgb = [chroma, x, 0];
+    else if (hue < 120) rgb = [x, chroma, 0];
+    else if (hue < 180) rgb = [0, chroma, x];
+    else if (hue < 240) rgb = [0, x, chroma];
+    else if (hue < 300) rgb = [x, 0, chroma];
+    else rgb = [chroma, 0, x];
+    return `#${rgb.map(value => Math.round((value + match) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function rotateHue(id, amount) {
+    const input = element(id);
+    const { hue, saturation, lightness } = hexToHsl(input.value);
+    input.value = hslToHex((hue + amount + 360) % 360, saturation, lightness);
+}
+
+function updateBackgroundFromPicker() {
+    const { red, green, blue } = hexToRgb(element("bgColor").value);
+    [["bgRed", red], ["bgGreen", green], ["bgBlue", blue]].forEach(([id, value]) => {
+        element(id).value = value;
+        element(`${id}Value`).value = value;
+        element(`${id}Value`).textContent = value;
+    });
+}
+
+function updateBackgroundFromRgb() {
+    const red = Number(element("bgRed").value);
+    const green = Number(element("bgGreen").value);
+    const blue = Number(element("bgBlue").value);
+    [["bgRed", red], ["bgGreen", green], ["bgBlue", blue]].forEach(([id, value]) => {
+        element(`${id}Value`).value = value;
+        element(`${id}Value`).textContent = value;
+    });
+    element("bgColor").value = `#${[red, green, blue].map(value => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function updateValues() {
+    element("strobeValue").textContent = `${element("strobeSpeed").value} Hz`;
+    element("contourValue").textContent = `${element("contour").value}%`;
+    element("contourSpeedValue").textContent = `${Number(element("contourSpeed").value).toFixed(2)} ciclos/s`;
+    groups.forEach(group => {
+        element(`${group}AngleValue`).textContent = `${element(`${group}Angle`).value}°`;
+        element(`${group}IntensityValue`).textContent = `${element(`${group}Intensity`).value}%`;
+    });
+}
+
+function selectGroup(group) {
+    selectedGroup = group;
+    document.querySelectorAll(".light-group").forEach(section => {
+        section.classList.toggle("is-selected", section.dataset.group === group);
+    });
+    element("gridGroup").classList.toggle("is-selected", group === "grid");
+    element("selectedLabel").textContent = `grupo ${selectableGroups.indexOf(group) + 1} · ${groupNames[group]}`;
+}
+
+function toggleSidebar() {
+    const hidden = document.body.classList.toggle("sidebar-hidden");
+    if (hidden && element("controls").contains(document.activeElement)) {
+        document.activeElement.blur();
+    } else if (!hidden) {
+        element("youtubeUrl").focus();
+    }
+    announce(hidden ? "Barra lateral ocultada · Q para mostrar" : "Barra lateral visível");
+}
+
+async function toggleFullscreen() {
+    try {
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        } else if (stage.requestFullscreen) {
+            await stage.requestFullscreen();
+        } else {
+            announce("Tela cheia não é suportada neste navegador");
+            return;
+        }
+        announce(document.fullscreenElement ? "Tela cheia · Esc ou F para sair" : "Tela cheia encerrada");
+    } catch (error) {
+        announce(`Não foi possível alternar para tela cheia: ${error.message}`);
+    }
+}
+
+function changeRange(id, amount, min, max) {
+    const input = element(id);
+    input.value = Math.max(min, Math.min(max, Number(input.value) + amount));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function cycleColor(direction) {
+    const input = element(`${selectedGroup}Color`);
+    const current = input.value.toLowerCase();
+    const index = palette.indexOf(current);
+    input.value = palette[index < 0
+        ? (direction > 0 ? 0 : palette.length - 1)
+        : (index + direction + palette.length) % palette.length];
+}
+
+function loadYoutube() {
+    const input = element("youtubeUrl");
+    const message = element("youtubeMessage");
+    let videoId = "";
+    try {
+        const url = new URL(input.value.trim());
+        const host = url.hostname.toLowerCase().replace(/^www\./, "");
+        if (host === "youtu.be") {
+            videoId = url.pathname.split("/").filter(Boolean)[0] || "";
+        } else if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+            if (url.pathname === "/watch") videoId = url.searchParams.get("v") || "";
+            else if (/^\/(embed|shorts|live)\//.test(url.pathname)) videoId = url.pathname.split("/")[2] || "";
+        }
+    } catch {
+        message.textContent = "Informe um link válido do YouTube.";
+        return;
+    }
+
+    if (!/^[\w-]{11}$/.test(videoId)) {
+        message.textContent = "Link não reconhecido. Use um link padrão do YouTube.";
+        return;
+    }
+
+    const frame = document.createElement("iframe");
+    frame.title = "Vídeo do YouTube";
+    frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1`;
+    frame.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
+    frame.allowFullscreen = true;
+    element("player").replaceChildren(frame);
+    message.textContent = "Vídeo carregado. A reprodução pode depender das permissões do navegador.";
+}
+
+function downloadHtml() {
+    const content = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`;
+    const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "alive-2007-stage.html";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function resizeCanvas() {
+    const bounds = canvas.getBoundingClientRect();
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(bounds.width * ratio));
+    canvas.height = Math.max(1, Math.round(bounds.height * ratio));
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+}
+
+function pointOnLine(a, b, t) {
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function drawBeam(point, color, angle, intensity, radius) {
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const length = radius * 1.15;
+    const spread = Math.max(12, radius * 0.27);
+    const endX = point.x + dx * length;
+    const endY = point.y + dy * length;
+    const sideX = -dy * spread;
+    const sideY = dx * spread;
+    const gradient = ctx.createLinearGradient(point.x, point.y, endX, endY);
+    gradient.addColorStop(0, `${color}${Math.round(intensity * 1.45).toString(16).padStart(2, "0")}`);
+    gradient.addColorStop(1, `${color}00`);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    ctx.lineTo(endX + sideX, endY + sideY);
+    ctx.lineTo(endX - sideX, endY - sideY);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawLight(point, color, mode, angle, intensity, radius, pulse) {
+    if (mode === "cone") drawBeam(point, color, angle, intensity * pulse, radius);
+    const rgb = hexToRgb(color);
+    const opacity = Math.min(1, intensity * pulse / 100);
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, ${opacity})`;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 7 + intensity * pulse / 8;
+    ctx.arc(point.x, point.y, 3.2 + intensity / 35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `${color}${Math.round(intensity * pulse).toString(16).padStart(2, "0")}`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+}
+
+function drawPyramid(centerX, centerY, scale, contour) {
+    const top = { x: centerX, y: centerY - scale * 0.24 };
+    const left = { x: centerX - scale * 0.19, y: centerY + scale * 0.18 };
+    const right = { x: centerX + scale * 0.19, y: centerY + scale * 0.18 };
+    const bottom = { x: centerX, y: centerY + scale * 0.28 };
+    ctx.fillStyle = "rgba(12, 20, 31, 0.88)";
+    ctx.beginPath();
+    ctx.moveTo(top.x, top.y);
+    ctx.lineTo(left.x, left.y);
+    ctx.lineTo(bottom.x, bottom.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(235, 250, 255, ${0.2 + contour / 125})`;
+    ctx.lineWidth = 1.5 + contour / 35;
+    ctx.beginPath();
+    ctx.moveTo(top.x, top.y);
+    ctx.lineTo(left.x, left.y);
+    ctx.lineTo(bottom.x, bottom.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(top.x, top.y);
+    ctx.lineTo(centerX, bottom.y);
+    ctx.moveTo(left.x, left.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.stroke();
+
+    const djY = centerY + scale * 0.12;
+    [-1, 1].forEach(side => {
+        const x = centerX + side * scale * 0.055;
+        ctx.fillStyle = "#f4f7ff";
+        ctx.shadowColor = "#b8eaff";
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(x, djY, Math.max(3, scale * 0.014), 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#c5cbd6";
+    ctx.font = `bold ${Math.max(9, scale * 0.025)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.fillText("THOMAS · GUY-MAN", centerX, centerY + scale * 0.245);
+}
+
+function render(timestamp) {
+    requestAnimationFrame(render);
+    if (!previousFrame) previousFrame = timestamp;
+    const delta = Math.min((timestamp - previousFrame) / 1000, 0.05);
+    previousFrame = timestamp;
+    if (!paused) elapsed += delta;
+
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (!width || !height) return;
+    ctx.clearRect(0, 0, width, height);
+
+    const bg = element("bgColor").value;
+    const speed = Number(element("strobeSpeed").value);
+    const strobeOn = element("strobeEnabled").checked && !reduceMotion.matches;
+    const flash = strobeOn && Math.sin(elapsed * speed * Math.PI * 2) > 0;
+    if (flash) {
+        ctx.fillStyle = bg;
+        ctx.globalAlpha = 0.28;
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalAlpha = 1;
+    }
+
+    const scale = Math.min(width * 0.77, height * 0.9);
+    const triHeight = scale * 0.88;
+    const triWidth = scale * 0.82;
+    const topY = Math.max(16, (height - triHeight) * 0.42);
+    const centerX = width / 2;
+    const A = { x: centerX, y: topY };
+    const B = { x: centerX - triWidth / 2, y: topY + triHeight };
+    const C = { x: centerX + triWidth / 2, y: topY + triHeight };
+    const centerY = topY + triHeight * 0.65;
+    const contour = Number(element("contour").value);
+    const contourAutomatic = element("contourAuto").checked && !reduceMotion.matches;
+    const contourSpeed = Number(element("contourSpeed").value);
+    const gridColor = element("gridColor").value;
+    const gridRgb = hexToRgb(gridColor);
+    const baseGridHue = hexToHsl(gridColor).hue;
+    const contourHue = contourAutomatic ? (baseGridHue + elapsed * contourSpeed * 360) % 360 : baseGridHue;
+    const contourPulse = contourAutomatic ? 0.65 + 0.35 * Math.sin(elapsed * contourSpeed * Math.PI * 2) : 1;
+    const contourColor = `hsla(${contourHue}, 95%, 70%, ${contour / 100 * contourPulse})`;
+    const pulse = paused ? 1 : (flash ? 1 : 0.72);
+    const lightPoints = {
+        left: Array.from({ length: 6 }, (_, index) => pointOnLine(A, B, index / 5)),
+        right: Array.from({ length: 6 }, (_, index) => pointOnLine(A, C, index / 5)),
+        bottom: Array.from({ length: 6 }, (_, index) => pointOnLine(B, C, index / 5))
+    };
+
+    groups.forEach((group, groupIndex) => {
+        const color = element(`${group}Color`).value;
+        const mode = element(`${group}Mode`).value;
+        const offset = Number(element(`${group}Angle`).value) * Math.PI / 180;
+        const intensity = Number(element(`${group}Intensity`).value);
+        lightPoints[group].forEach(point => {
+            const targetAngle = Math.atan2(centerY - point.y, centerX - point.x);
+            const angle = targetAngle + offset + groupIndex * 0.12;
+            drawLight(point, color, mode, angle, intensity, scale * 0.35, pulse);
+        });
+    });
+
+    ctx.lineWidth = 0.8 + contour / 38;
+    ctx.strokeStyle = contourAutomatic ? contourColor : `rgba(${gridRgb.red}, ${gridRgb.green}, ${gridRgb.blue}, ${0.18 + contour / 135})`;
+    ctx.shadowColor = contourAutomatic ? `hsl(${contourHue}, 95%, 70%)` : "#9ceeff";
+    ctx.shadowBlur = contour * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y);
+    ctx.lineTo(B.x, B.y);
+    ctx.lineTo(C.x, C.y);
+    ctx.closePath();
+    ctx.stroke();
+
+    for (let index = 1; index < 6; index++) {
+        const t = index / 6;
+        const left = pointOnLine(A, B, t);
+        const right = pointOnLine(A, C, t);
+        const base = pointOnLine(B, C, t);
+        ctx.beginPath();
+        ctx.moveTo(left.x, left.y);
+        ctx.lineTo(right.x, right.y);
+        ctx.moveTo(A.x, A.y);
+        ctx.lineTo(base.x, base.y);
+        ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    drawPyramid(centerX, centerY, scale, contour);
+
+    if (paused) {
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 13px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("PAUSADO · Espaço para retomar", centerX, 24);
+    }
+}
+
+element("bgColor").addEventListener("input", updateBackgroundFromPicker);
+["bgRed", "bgGreen", "bgBlue"].forEach(id => element(id).addEventListener("input", updateBackgroundFromRgb));
+element("loadYoutube").addEventListener("click", loadYoutube);
+element("youtubeUrl").addEventListener("keydown", event => {
+    if (event.key === "Enter") loadYoutube();
+});
+element("downloadHtml").addEventListener("click", downloadHtml);
+element("strobeSpeed").addEventListener("input", updateValues);
+element("contour").addEventListener("input", updateValues);
+element("contourSpeed").addEventListener("input", updateValues);
+groups.forEach(group => {
+    element(`${group}Angle`).addEventListener("input", updateValues);
+    element(`${group}Intensity`).addEventListener("input", updateValues);
+});
+
+document.addEventListener("keydown", event => {
+    const target = event.target;
+    const textEntry = target instanceof HTMLElement &&
+        (target.isContentEditable || target instanceof HTMLTextAreaElement ||
+            (target instanceof HTMLInputElement && ["text", "url", "search", "email", "password"].includes(target.type)));
+    if (event.key.toLowerCase() === "q" && !textEntry && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        toggleSidebar();
+        return;
+    }
+    if (event.key.toLowerCase() === "f" && !textEntry &&
+        !(target instanceof HTMLSelectElement) && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        toggleFullscreen();
+        return;
+    }
+
+    const editing = target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(target.tagName));
+    if (editing || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const key = event.key.toLowerCase();
+    let handled = true;
+    switch (key) {
+        case "1": selectGroup("left"); announce("Grupo esquerdo selecionado"); break;
+        case "2": selectGroup("right"); announce("Grupo direito selecionado"); break;
+        case "3": selectGroup("bottom"); announce("Grupo da base selecionado"); break;
+        case "4": selectGroup("grid"); announce("Grade central selecionada"); break;
+        case "arrowleft":
+        case "arrowright":
+            if (selectedGroup === "grid") {
+                rotateHue("gridColor", key === "arrowleft" ? -5 : 5);
+            } else {
+                changeRange(`${selectedGroup}Angle`, key === "arrowleft" ? -5 : 5, 0, 360);
+            }
+            break;
+        case "arrowup":
+        case "arrowdown":
+            if (selectedGroup === "grid") {
+                changeRange("contour", key === "arrowup" ? 5 : -5, 0, 100);
+            } else {
+                changeRange(`${selectedGroup}Intensity`, key === "arrowup" ? 5 : -5, 10, 100);
+            }
+            break;
+        case "[": cycleColor(-1); break;
+        case "]": cycleColor(1); break;
+        case "h":
+        case "g": {
+            const amount = key === "h" ? 30 : -30;
+            rotateHue(`${selectedGroup}Color`, amount);
+            rotateHue("bgColor", amount);
+            updateBackgroundFromPicker();
+            announce(`Matiz ${amount > 0 ? "+30°" : "-30°"} · fundo e ${groupNames[selectedGroup]}`);
+            break;
+        }
+        case "m": {
+            if (selectedGroup === "grid") {
+                announce("M alterna a projeção dos grupos de luzes; selecione 1, 2 ou 3");
+                break;
+            }
+            const mode = element(`${selectedGroup}Mode`);
+            mode.value = mode.value === "cone" ? "spot" : "cone";
+            announce(`Projeção ${mode.value === "cone" ? "cones" : "pontos"} · ${groupNames[selectedGroup]}`);
+            break;
+        }
+        case "t":
+            element("contourAuto").checked = !element("contourAuto").checked;
+            announce(`Alternância automática dos contornos ${element("contourAuto").checked ? "ligada" : "desligada"}`);
+            break;
+        case "k": changeRange("contourSpeed", -0.05, 0.05, 1.5); break;
+        case "l": changeRange("contourSpeed", 0.05, 0.05, 1.5); break;
+        case "+": case "=": changeRange("strobeSpeed", 0.5, 0.5, 4); break;
+        case "-": case "_": changeRange("strobeSpeed", -0.5, 0.5, 4); break;
+        case "b":
+            element("strobeEnabled").checked = !element("strobeEnabled").checked;
+            announce(`Estrobo ${element("strobeEnabled").checked ? "ligado" : "desligado"}`);
+            break;
+        case ",": changeRange("contour", -5, 0, 100); break;
+        case ".": changeRange("contour", 5, 0, 100); break;
+        case " ": paused = !paused; announce(paused ? "Animação pausada" : "Animação retomada"); break;
+        case "?": case "/":
+            legend.hidden = !legend.hidden;
+            announce(legend.hidden ? "Legenda oculta" : "Legenda visível");
+            break;
+        default: handled = false;
+    }
+    if (handled) event.preventDefault();
+});
+
+updateBackgroundFromPicker();
+updateValues();
+selectGroup(selectedGroup);
+new ResizeObserver(resizeCanvas).observe(stage);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
