@@ -4,10 +4,9 @@ Simulador interativo em um único arquivo HTML, inspirado no palco da turnê Ali
 
 ## Abrir
 
-- Localmente: [abrir o simulador](./index.html).
-- Publicado no GitHub Pages: [abrir a demonstração interativa](https://USUARIO.github.io/REPOSITORIO/).
 
-O endereço do GitHub Pages acima é um modelo: substitua `USUARIO` e `REPOSITORIO` pelos dados do repositório depois de publicar o site. Para ativar a publicação, envie `index.html` para o GitHub e, no repositório, selecione **Settings → Pages → Deploy from a branch**, escolha a branch `main` e a pasta `/ (root)`. O GitHub exibirá o endereço público da página nessa tela.
+- Demo online: [abrir a demonstração interativa]https://marciofao.github.io/alive-2007-simulator/).
+
 
 ## Controles de teclado
 
